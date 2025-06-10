@@ -5,7 +5,7 @@ The application is built with Node.js, Express, LangChain.js, and is containeriz
 
 # Live Demo
 URL: https://website-chatbot-service-300605981372.us-central1.run.app/
-Note: Replace with your actual Cloud Run URL.
+
 
 # Features
 Dynamic Data Ingestion: Scrapes any provided website URL recursively to gather textual content.
