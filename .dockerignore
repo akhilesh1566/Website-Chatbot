@@ -1,0 +1,15 @@
+# Git and Node specific
+.git
+.gitignore
+node_modules
+npm-debug.log
+
+# Environment files - these should be injected, not copied
+.env
+
+# Cache directory - this will be mounted from a volume in production
+/vector_stores
+
+# IDE / OS specific
+.vscode
+.DS_Store
