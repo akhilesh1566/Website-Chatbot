@@ -7,11 +7,8 @@ const {
 const { RunnableSequence } = require("@langchain/core/runnables");
 const { StringOutputParser } = require("@langchain/core/output_parsers");
 const { formatDocumentsAsString } = require("langchain/util/document");
-// NO OTHER RERANKER/COMMUNITY IMPORTS ARE NEEDED
 
 // We will use a singleton pattern to hold our memory and vector store
-// so it persists across requests in a simple server setup.
-// In a production/scaled environment, this would be managed differently (e.g., Redis, DB).
 const state = {
   vectorStore: null,
   chatHistory: new ChatMessageHistory(),
@@ -24,7 +21,6 @@ const state = {
 function setVectorStore(vectorStore) {
   console.log("[ChatService] Vector store has been set.");
   state.vectorStore = vectorStore;
-  // Also reset history when a new site is loaded
   state.chatHistory = new ChatMessageHistory();
   console.log("[ChatService] Chat history has been reset.");
 }
@@ -38,14 +34,12 @@ function createChain() {
     throw new Error("Vector store not set. Please prepare a site first.");
   }
 
-  // 1. Initialize the base LLM
   const llm = new ChatOpenAI({
     modelName: "gpt-3.5-turbo",
     temperature: 0.2,
     openAIApiKey: process.env.OPENAI_API_KEY,
   });
 
-  // 2. Implement the LLM-based reranker function
   const llmReranker = async (query, documents) => {
     console.log('[Reranker] Starting LLM-based reranking...');
     const docStrings = documents.map(d => d.pageContent);
@@ -60,7 +54,6 @@ JSON Response:`;
     const response = await rerankLlm.invoke(rerankPrompt);
     
     try {
-        // Sometimes the LLM might return the JSON inside a code block, so let's clean it.
         const cleanedResponse = response.content.replace(/```json\n?|\n?```/g, '').trim();
         const scores = JSON.parse(cleanedResponse);
         console.log('[Reranker] Parsed scores:', scores);
@@ -73,15 +66,12 @@ JSON Response:`;
         return topDocs;
     } catch(e) {
         console.error("[Reranker] Failed to parse LLM reranker response. Falling back to original documents.", e);
-        // Fallback to just returning the top 3 documents without reranking
         return documents.slice(0, 3);
     }
   };
 
-  // 3. Create the base retriever from our vector store
-  const retriever = state.vectorStore.asRetriever(5); // Retrieve top 5 docs initially for reranking
+  const retriever = state.vectorStore.asRetriever(5);
 
-  // 4. Define the prompt template
   const prompt = ChatPromptTemplate.fromMessages([
     ["system", `You are an expert assistant for the website being discussed. Your goal is to provide accurate and helpful answers based ONLY on the context provided below. Be friendly and conversational. If you don't know the answer or it's not in the context, say "I'm sorry, I couldn't find information about that on this website." DO NOT make up information.
 
@@ -91,14 +81,12 @@ JSON Response:`;
     ["human", "{question}"],
   ]);
 
-  // 5. Define the conversational memory
   const memory = new BufferMemory({
     chatHistory: state.chatHistory,
     returnMessages: true,
     memoryKey: "chat_history",
   });
 
-  // 6. Build the main RAG Chain (without memory saving)
   const ragChain = RunnableSequence.from([
     {
       question: (input) => input.question,
@@ -119,22 +107,28 @@ JSON Response:`;
     new StringOutputParser(),
   ]);
 
-  // 7. Create a final chain that includes memory saving
+  // MODIFICATION: The wrapper to handle memory is the source of the object response.
+  // We'll simplify how it works.
   const chainWithMemory = RunnableSequence.from([
     {
       question: (input) => input.question,
-      response: ragChain,  // Run the main chain
+      memory: () => memory, // Pass memory directly
     },
     {
-      // This step saves the context and then returns only the response string
-      response: async(input) => {
-        await memory.saveContext({ question: input.question }, { output: input.response });
-        return input.response;
+      // Load history, run the chain, then save the new interaction
+      question: (input) => input.question,
+      response: async (input) => {
+        const memoryVariables = await input.memory.loadMemoryVariables({});
+        const chat_history = memoryVariables.chat_history;
+        const response = await ragChain.invoke({ question: input.question, chat_history });
+        await input.memory.saveContext({ question: input.question }, { output: response });
+        return response; // Return the string response directly
       }
     }
   ]);
-  
-  return chainWithMemory;
+
+  // We only care about the final 'response' key.
+  return chainWithMemory.pick("response");
 }
 
 /**
@@ -148,6 +142,7 @@ async function callChain(question) {
     }
     console.log(`[ChatService] Received question: "${question}"`);
     const chain = createChain();
+    // The invoke will now directly return the string.
     const response = await chain.invoke({ question });
     console.log(`[ChatService] Generated response: "${response}"`);
     return response;

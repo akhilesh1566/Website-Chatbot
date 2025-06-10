@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Website Chatbot</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Dynamic Website Chatbot</h1>
+            <p>Enter any website URL to start chatting with its content.</p>
+        </header>
+
+        <section id="site-loader" class="site-loader">
+            <input type="url" id="url-input" placeholder="e.g., https://occamsadvisory.com/" required>
+            <button id="load-button">Load Website</button>
+            <div id="loader-status" class="status-message"></div>
+        </section>
+
+        <section id="chat-container" class="chat-container hidden">
+            <div id="chat-window" class="chat-window">
+                <!-- Chat messages will be appended here -->
+            </div>
+            <form id="chat-form" class="chat-form">
+                <input type="text" id="message-input" placeholder="Ask a question about the website..." autocomplete="off" required disabled>
+                <button type="submit" id="send-button" disabled>Send</button>
+            </form>
+            <div id="chat-status" class="status-message"></div>
+        </section>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
