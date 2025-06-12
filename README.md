@@ -40,8 +40,11 @@ Set up environment variables:
 Create a .env file in the root directory and add your OpenAI API key:
 
 OPENAI_API_KEY="sk-..."
+
 for running the app after installing dependencies
+
 node server.js
+
 
 Running the Application
 1. In Development Mode (with Nodemon)
